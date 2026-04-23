@@ -1,0 +1,21 @@
+[project]
+name = "radio-telescope"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Talita Amaral",email = "nekhebit@users.noreply.github.com"}
+]
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "numpy (>=2.4.4,<3.0.0)",
+    "matplotlib (>=3.10.8,<4.0.0)",
+    "pyrtlsdr (>=0.4.0,<0.5.0)"
+]
+
+[tool.poetry]
+packages = [{include = "radio_telescope", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
