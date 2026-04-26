@@ -1,7 +1,7 @@
 # spinflip
 
 A hydrogen line (21 cm) spectrometer built with an RTL-SDR dongle. Captures
-radio signals at 1420.405 MHz, averages multiple FFT frames to reduce noise,
+radio signals at 1420,405 MHz, averages multiple FFT frames to reduce noise,
 and plots the resulting power spectrum in dB.
 
 Inspired by [CHART](https://github.com/astrochart/CHART) — the Completely
@@ -10,7 +10,7 @@ Hackable Amateur Radio Telescope project.
 ## Hardware
 
 - RTL-SDR Blog V4 dongle
-- SAWbird+ H1 LNA (provides ~40 dB amplification at the hydrogen line)
+- SAWbird+ H1 LNA (provides ~40 dB amplification at the hydrogen line — centred on 1420,405 MHz)
 - A suitable antenna or dish pointed at the sky
 
 ## Dependencies
@@ -46,7 +46,7 @@ line. Let it run — 100 FFT integrations are averaged before the plot appears.
 
 ## How it works
 
-The dongle is tuned 1 MHz above the hydrogen line (1421.405 MHz) so the line
+The dongle is tuned 1 MHz above the hydrogen line (1421,405 MHz) so the line
 of interest appears as an offset peak rather than at DC zero, which RTL-SDR
 hardware cannot accurately represent. The 2 MHz sample rate gives a 1 MHz
 window on either side of the tuned frequency.
