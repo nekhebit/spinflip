@@ -6,6 +6,9 @@ import radio_telescope.sdr_compat  # must come before any rtlsdr import
 from rtlsdr.rtlsdr import RtlSdr, LibUSBError
 import numpy as np
 import matplotlib.pyplot as plt
+from astropy.io import fits
+import datetime
+import sys
 
 # device configuration
 
@@ -62,6 +65,24 @@ try:
     freqs_mhz = np.fft.fftshift(freqs) / 10**6
     power_db = np.fft.fftshift(power_db)
 
+    # saving data to disk
+    hdu = fits.PrimaryHDU(power_db)
+    hdu.header["FREQ"] = center_freq
+    hdu.header["OFFSET"] = offset
+    hdu.header["SAMPRATE"] = sample_rate
+    hdu.header["NUMINT"] = num_integrations
+    hdu.header["DATE-OBS"] = datetime.datetime.utcnow().isoformat()
+    hdu.header["TELESCOP"] = "Homebrew Horn - Cardboard 90x70cm"
+    hdu.header["BUNIT"] = "dB"
+
+    freqs_hdu = fits.ImageHDU(freqs_mhz, name="FREQS")
+    freqs_hdu.header["BUNIT"] = "MHz"
+
+    output_path = sys.argv[1] if len(sys.argv) > 1 else "observations/observation.fits"
+    fits.HDUList([primary, freqs_hdu]).writeto(output_path, overwrite=True)
+    print(f"Saved to {output_path}")
+
+    # Plotting graph
     plt.plot(freqs_mhz, power_db)
     plt.xlabel("MHz")
     plt.ylabel("dB")
