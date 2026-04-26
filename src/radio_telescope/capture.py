@@ -29,24 +29,31 @@ with RtlSdr() as sdr:
 
     # 262144
     sample_count = 256 * 1024
-    samples = sdr.read_samples(sample_count)
 
-    # fft runs the "does it agree?" check for every frequency bin from k=0 to k=N-1
-    # and returns a complex number per bin encoding how strongly that frequency is present
-    spectrum = np.fft.fft(samples)
+    num_integrations = 100
+    power_avg = np.zeros(sample_count)
 
-    # abs() gives the length of the complex arrow (√(a²+b²)) for each bin
-    # squaring it gives power — a real positive number representing signal strength per bin
-    power = np.abs(spectrum) ** 2
+    for n in range(num_integrations):
+        # read samples from sdr
+        samples = sdr.read_samples(sample_count)
 
-    # power is unitless, so we transform it into dB so that it will increase visibility in our plot
-    power_db = 10 * np.log10(power)
+        # fft runs the "does it agree?" check for every frequency bin from k=0 to k=N-1
+        # and returns a complex number per bin encoding how strongly that frequency is present
+        spectrum = np.fft.fft(samples)
+
+        # abs() gives the length of the complex arrow (√(a²+b²)) for each bin
+        # squaring it gives power — a real positive number representing signal strength per bin
+        power_avg += np.abs(spectrum) ** 2
+
+    power_avg /= num_integrations
 
     # fftfreq generates a frequency label for each bin — it is just a ruler,
     # not a computation on the signal. d is the time between samples (1/sample_rate),
     # which tells numpy how to convert bin indices into Hz
     freqs = np.fft.fftfreq(len(samples), d=1 / sample_rate)
 
+    # power is unitless, so we transform it into dB so that it will increase visibility in our plot
+    power_db = 10 * np.log10(power_avg)
     # fftshift reorders both arrays by position (not value) so frequencies
     # run from most negative to most positive — matches how a spectrum should read
     freqs_mhz = np.fft.fftshift(freqs) / 10**6
