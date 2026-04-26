@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Talita Amaral
-# Developed with assistance from Claude (Anthropic) — see NOTICE
 
 # Graphical interface for spinflip.
 # All capture logic lives in capture_core.py — this module only handles

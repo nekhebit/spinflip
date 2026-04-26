@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Talita Amaral
-# Developed with assistance from Claude (Anthropic) — see NOTICE
 
 # Quick-start entry point for spinflip.
 # Runs an observation with hardcoded defaults and plots the result immediately.

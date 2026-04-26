@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Talita Amaral
-# Developed with assistance from Claude (Anthropic) — see NOTICE
 
 # Command-line entry point for spinflip observations.
 # All capture logic lives in capture_core.py — this script handles

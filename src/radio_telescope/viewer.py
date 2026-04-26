@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Talita Amaral
-# Developed with assistance from Claude (Anthropic) — see NOTICE
 
 # Standalone FITS viewer for spinflip observations.
 # Lets the user pick a saved observation file and displays the power spectrum

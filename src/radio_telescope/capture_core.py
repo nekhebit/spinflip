@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Talita Amaral
-# Developed with assistance from Claude (Anthropic) — see NOTICE
 
 # This module contains the shared observation pipeline used by both observe.py
 # (command-line) and gui.py (graphical interface). Keeping the logic here means
