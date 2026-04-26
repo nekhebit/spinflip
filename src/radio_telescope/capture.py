@@ -12,13 +12,13 @@ import sys
 
 # device configuration
 
-# we tune slightly above the hydrogen line (1420.405 MHz) so the signal
+# we tune slightly above the hydrogen line (1420,405 MHz) so the signal
 # appears as a frequency offset rather than freezing at zero on the spectrum
 offset = 1.0e6  # Hz
 
 # sample rate must be at least 2x the offset to capture the hydrogen line
-# (Nyquist theorem). RTL-SDR v4 maximum sample rate is 3.2 MHz,
-# so offset must stay below 1.6 MHz to keep sample_rate within hardware limits
+# (Nyquist theorem). RTL-SDR v4 maximum sample rate is 3,2 MHz,
+# so offset must stay below 1,6 MHz to keep sample_rate within hardware limits
 # the chosen offset gives us a 2 MHz wide window centred on center_freq
 sample_rate = 2 * offset  # Hz
 
@@ -30,7 +30,7 @@ try:
     sdr.sample_rate = sample_rate
     sdr.center_freq = center_freq
 
-    # gain: auto for now, SAWbird already provides 40dB amplification upstream
+    # gain: auto for now, SAWbird already provides 40 dB amplification upstream
     sdr.gain = "auto"
 
     # 262144
@@ -71,7 +71,7 @@ try:
     hdu.header["OFFSET"] = offset
     hdu.header["SAMPRATE"] = sample_rate
     hdu.header["NUMINT"] = num_integrations
-    hdu.header["DATE-OBS"] = datetime.datetime.utcnow().isoformat()
+    hdu.header["DATE-OBS"] = datetime.datetime.now(datetime.UTC).isoformat()
     hdu.header["TELESCOP"] = "Homebrew Horn - Cardboard 90x70cm"
     hdu.header["BUNIT"] = "dB"
 
@@ -79,7 +79,7 @@ try:
     freqs_hdu.header["BUNIT"] = "MHz"
 
     output_path = sys.argv[1] if len(sys.argv) > 1 else "observations/observation.fits"
-    fits.HDUList([primary, freqs_hdu]).writeto(output_path, overwrite=True)
+    fits.HDUList([hdu, freqs_hdu]).writeto(output_path, overwrite=True)
     print(f"Saved to {output_path}")
 
     # Plotting graph
