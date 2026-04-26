@@ -1,0 +1,10 @@
+[observation]
+azimuth = 0.0
+elevation = 90.0
+num_integrations = 100
+output_dir = "observations"
+
+[hardware]
+offset_hz = 1_000_000
+#TODO ppm_correction = 0
+gain = "auto"
