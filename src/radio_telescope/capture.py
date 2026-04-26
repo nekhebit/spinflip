@@ -1,5 +1,6 @@
 from rtlsdr import RtlSdr
 import numpy as np
+import matplotlib.pyplot as plt
 
 # device configuration
 
@@ -38,7 +39,18 @@ with RtlSdr() as sdr:
     # squaring it gives power — a real positive number representing signal strength per bin
     power = np.abs(spectrum) ** 2
 
+    # power is unitless, so we transform it into dB so that it will increase visibility in our plot
+    power_db = 10 * np.log10(power)
+
     # fftfreq generates a frequency label for each bin — it is just a ruler,
     # not a computation on the signal. d is the time between samples (1/sample_rate),
     # which tells numpy how to convert bin indices into Hz
     freqs = np.fft.fftfreq(len(samples), d=1 / sample_rate)
+
+    freqs_mhz = freqs / (10**6)
+
+    plt.plot(freqs_mhz, power_db)
+    plt.xlabel("MHz")
+    plt.ylabel("dB")
+    plt.title("Intensity of H-I Line")
+    plt.show()
