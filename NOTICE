@@ -1,0 +1,23 @@
+radio-telescope
+Copyright (C) 2026 Talita Amaral
+
+This project was developed with the assistance of Claude, an AI assistant
+made by Anthropic (https://www.anthropic.com). AI assistance was used for
+code authorship, debugging, and technical decisions. All creative direction,
+problem definition, and final review were performed by the human author.
+
+This software is licensed under the GNU General Public License v3.0 or later.
+See the LICENSE file for details.
+
+---
+
+This software depends on the following third-party libraries:
+
+  pyrtlsdr — GPL-3.0-or-later
+  Copyright (C) 2013 Roger (https://github.com/roger-/pyrtlsdr)
+
+  numpy — BSD-3-Clause
+  Copyright (C) 2005-2024 NumPy Developers
+
+  matplotlib — PSF-based (matplotlib license)
+  Copyright (C) 2002-2024 Matplotlib Development Team
