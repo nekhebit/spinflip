@@ -1,5 +1,5 @@
 from rtlsdr import RtlSdr
-
+import numpy as np
 
 # device configuration
 
@@ -27,3 +27,8 @@ with RtlSdr() as sdr:
     sdr.gain = "auto"
 
     samples = sdr.read_samples(256 * 1024)
+
+    # samples = your IQ data, a numpy array of complex numbers
+    spectrum = np.fft.fft(samples)
+    power = np.abs(spectrum) ** 2
+    freqs = np.fft.fftfreq(len(samples), d=1 / sample_rate)
