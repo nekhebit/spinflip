@@ -47,7 +47,10 @@ with RtlSdr() as sdr:
     # which tells numpy how to convert bin indices into Hz
     freqs = np.fft.fftfreq(len(samples), d=1 / sample_rate)
 
-    freqs_mhz = freqs / (10**6)
+    # fftshift reorders both arrays by position (not value) so frequencies
+    # run from most negative to most positive — matches how a spectrum should read
+    freqs_mhz = np.fft.fftshift(freqs) / 10**6
+    power_db = np.fft.fftshift(power_db)
 
     plt.plot(freqs_mhz, power_db)
     plt.xlabel("MHz")
