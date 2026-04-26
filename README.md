@@ -37,9 +37,25 @@ poetry install
 
 ## Usage
 
+**Quick start** — hardcoded defaults, plots immediately:
 ```bash
 poetry run python src/radio_telescope/capture.py
 ```
+
+**With a config file** — saves a timestamped FITS file and config to `observations/`:
+```bash
+cp config.example.toml config.toml   # edit azimuth, elevation, telescope name…
+poetry run python src/radio_telescope/observe.py config.toml
+```
+
+**Graphical interface:**
+```bash
+poetry run python src/radio_telescope/gui.py
+```
+
+`config.example.toml` at the repo root documents all available options.
+You can keep multiple named configs (e.g. `zenith.toml`, `galactic_plane.toml`)
+and pass whichever you need to `observe.py`.
 
 A window will open showing the power spectrum in dB centred on the hydrogen
 line. Let it run — 100 FFT integrations are averaged before the plot appears.

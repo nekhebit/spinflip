@@ -33,8 +33,8 @@ Hardcoded parameters, no config file. Captures samples, averages FFT frames, sav
 **`observe.py` — configurable observation script**
 Loads `config.toml` (or a path passed as `sys.argv[1]`) and merges it with `DEFAULT_CONFIG` so partial config files work. Saves output to a timestamped FITS file in `observations/`. Adds azimuth and elevation from config to the FITS header.
 
-**`config.toml`**
-Two sections: `[hardware]` (offset, gain) and `[observation]` (az/el, integrations, output dir, telescope name). A copy lives at both the repo root and `src/radio_telescope/` — the root one is the user's working copy (gitignored); the one under `src/` is the example checked into version control.
+**`config.example.toml`**
+Template config at the repo root documenting all available options. Users copy it to `config.toml` (gitignored) and edit as needed. Two sections: `[hardware]` (offset, gain) and `[observation]` (az/el, integrations, output dir, telescope name). Multiple named configs (e.g. `zenith.toml`) are supported — pass any path to `observe.py` as `sys.argv[1]`.
 
 ## Key constraints
 
