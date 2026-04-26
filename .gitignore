@@ -2,6 +2,9 @@
 observations/
 *.fits
 
+# personal config (copy of config.example.toml with local pointing coordinates)
+config.toml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
