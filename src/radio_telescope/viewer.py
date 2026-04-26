@@ -69,6 +69,9 @@ class ViewerApp(tk.Tk):
         super().__init__()
         self.title("spinflip — FITS viewer")
         self.resizable(True, True)
+        # Close the matplotlib figure when the window is destroyed so the
+        # process exits cleanly without needing Ctrl-C.
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._build_ui()
 
         # If a path was passed on the command line, load it immediately.
@@ -101,6 +104,12 @@ class ViewerApp(tk.Tk):
 
         self._meta_label = ttk.Label(meta_frame, text="—", justify="left", font=("monospace", 10))
         self._meta_label.pack(padx=12, pady=12)
+
+    def _on_close(self):
+        # Destroy the Tkinter window and close the matplotlib figure so no
+        # background references keep the process alive after the user closes.
+        plt.close(self._fig)
+        self.destroy()
 
     def _pick_file(self):
         path = filedialog.askopenfilename(
