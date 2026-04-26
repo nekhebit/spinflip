@@ -14,7 +14,9 @@ import matplotlib.pyplot as plt
 offset = 1.0e6  # Hz
 
 # sample rate must be at least 2x the offset to capture the hydrogen line
-# (Nyquist theorem) — gives us a 2 MHz wide window centred on center_freq
+# (Nyquist theorem). RTL-SDR v4 maximum sample rate is 3.2 MHz,
+# so offset must stay below 1.6 MHz to keep sample_rate within hardware limits
+# the chosen offset gives us a 2 MHz wide window centred on center_freq
 sample_rate = 2 * offset  # Hz
 
 # center frequency: hydrogen line + offset so the line sits visibly on the spectrum
