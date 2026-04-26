@@ -93,11 +93,17 @@ Actionable errors name: *what failed*, *what the user should do*, and *where to 
 
 ## Testing
 
-There are no tests yet (`tests/` contains only `__init__.py`). When tests are added, the priority order is:
+```bash
+poetry run pytest tests/ -v
+```
 
-1. `sdr_compat.py` — unit test that `_SafeCDLL` returns a callable no-op for a missing symbol
-2. `capture_core.py` — unit tests for `load_config` and `write_config`; integration test for `run_observation` with a mocked `RtlSdr`
-3. `viewer.py` — unit test for `load_fits` and `format_metadata` against a minimal synthetic FITS file
+Three test files cover the non-GUI logic:
+
+- `tests/test_sdr_compat.py` — `_SafeCDLL` and `_NullFunc` behaviour
+- `tests/test_capture_core.py` — `load_config`, `write_config`, and `run_observation` with a mocked `RtlSdr` (no hardware needed)
+- `tests/test_viewer.py` — `load_fits` and `format_metadata` against a synthetic FITS file
+
+The GUI classes (`ViewerApp`, `gui.py`) are not tested — they require a display and contain only thin wiring logic.
 
 ## Key constraints
 
