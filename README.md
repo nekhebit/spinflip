@@ -72,6 +72,15 @@ window on either side of the tuned frequency.
 spectral features visible. The result is displayed with frequency in MHz on
 the x-axis and power in dB on the y-axis.
 
+## OS compatibility
+
+This project was developed and tested on Linux. Other platforms have not been tested.
+
+- **macOS** — likely works. Replace the `librtlsdr` build steps with `brew install librtlsdr` and install the USB driver via [rtl-sdr-blog](https://github.com/rtlsdrblog/rtl-sdr-blog).
+- **Windows** — untested. `librtlsdr` requires [Zadig](https://zadig.akeo.ie/) to install the WinUSB driver before the dongle is accessible from Python. Build instructions differ significantly.
+
+Contributions with tested instructions for other platforms are welcome.
+
 ## Compatibility note
 
 `pyrtlsdr` 0.4.0 references symbols (`rtlsdr_set_dithering`, GPIO functions)
