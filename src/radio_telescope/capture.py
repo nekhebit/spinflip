@@ -3,7 +3,7 @@
 # Developed with assistance from Claude (Anthropic) — see NOTICE
 
 import radio_telescope.sdr_compat  # must come before any rtlsdr import
-from rtlsdr.rtlsdr import RtlSdr
+from rtlsdr.rtlsdr import RtlSdr, LibUSBError
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -22,8 +22,8 @@ sample_rate = 2 * offset  # Hz
 # center frequency: hydrogen line + offset so the line sits visibly on the spectrum
 center_freq = 1.420e9 + offset  # Hz
 
-sdr = RtlSdr()
 try:
+    sdr = RtlSdr()
     sdr.sample_rate = sample_rate
     sdr.center_freq = center_freq
 
@@ -67,5 +67,15 @@ try:
     plt.ylabel("dB")
     plt.title("Intensity of H-I Line")
     plt.show()
+except LibUSBError:
+    print("Could not connect to RTL-SDR. Is the dongle plugged in?")
+    exit(1)
+except OSError as e:
+    print(f"USB communication error: {e}")
+    exit(1)
 finally:
-    sdr.close()
+    try:
+        sdr.close()
+    except NameError:
+        # sdr was never assigned — connection failed before RtlSdr() completed
+        pass
