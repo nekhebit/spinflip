@@ -1,4 +1,5 @@
 # observation data files
+observations/
 *.fits
 
 # Byte-compiled / optimized / DLL files
