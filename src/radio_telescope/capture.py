@@ -26,9 +26,19 @@ with RtlSdr() as sdr:
     # gain: auto for now, SAWbird already provides 40dB amplification upstream
     sdr.gain = "auto"
 
-    samples = sdr.read_samples(256 * 1024)
+    # 262144
+    sample_count = 256 * 1024
+    samples = sdr.read_samples(sample_count)
 
-    # samples = your IQ data, a numpy array of complex numbers
+    # fft runs the "does it agree?" check for every frequency bin from k=0 to k=N-1
+    # and returns a complex number per bin encoding how strongly that frequency is present
     spectrum = np.fft.fft(samples)
+
+    # abs() gives the length of the complex arrow (√(a²+b²)) for each bin
+    # squaring it gives power — a real positive number representing signal strength per bin
     power = np.abs(spectrum) ** 2
+
+    # fftfreq generates a frequency label for each bin — it is just a ruler,
+    # not a computation on the signal. d is the time between samples (1/sample_rate),
+    # which tells numpy how to convert bin indices into Hz
     freqs = np.fft.fftfreq(len(samples), d=1 / sample_rate)
