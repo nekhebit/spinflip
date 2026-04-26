@@ -20,8 +20,6 @@ poetry run python src/radio_telescope/observe.py           # uses config.toml if
 poetry run python src/radio_telescope/observe.py my.toml  # explicit config path
 ```
 
-There are no tests yet (`tests/` contains only `__init__.py`).
-
 ## Architecture
 
 **`sdr_compat.py` — must always be imported first**
@@ -35,6 +33,71 @@ Loads `config.toml` (or a path passed as `sys.argv[1]`) and merges it with `DEFA
 
 **`config.example.toml`**
 Template config at the repo root documenting all available options. Users copy it to `config.toml` (gitignored) and edit as needed. Two sections: `[hardware]` (offset, gain) and `[observation]` (az/el, integrations, output dir, telescope name). Multiple named configs (e.g. `zenith.toml`) are supported — pass any path to `observe.py` as `sys.argv[1]`.
+
+**`gui.py` — graphical interface**
+Tkinter form for all config parameters with a progress bar and status label. Runs `run_observation` in a background thread, communicating progress back to the UI via a `queue.Queue` polled with `after(100)`. Accepts comma or dot as decimal separator in float fields.
+
+**`viewer.py` — standalone FITS viewer**
+Opens a saved observation file and displays the power spectrum alongside the metadata recorded at capture time. Can be launched with a path argument or via a file picker. Uses `FigureCanvasTkAgg` to embed matplotlib in the Tkinter window.
+
+## Version control
+
+### Commit only when bulletproof
+
+Only create commits when every one of these is true:
+
+1. **Validated** — the changed code runs correctly end-to-end (or tests pass once they exist).
+2. **Critiqued** — changes have been read back; contradictions between files have been hunted for and resolved.
+3. **Scope-clean** — only files required for the stated task are modified. No drive-by formatting, no unrelated refactors.
+4. **No half-finished work** — every function has a body, every import is used, no `TODO` left as a placeholder for missing logic.
+
+If any of those is uncertain, surface the uncertainty to the user and wait.
+
+**Still prohibited without explicit user instruction:** pushing to remote, force-pushing, amending existing commits.
+
+### Commit messages and attribution
+
+Write commit messages as the human author. Use conventional commits style (`feat:`, `fix:`, `refactor:`, `docs:`) with a short title under ~70 characters and a body that explains *why*, not *what*.
+
+Add `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>` only when the commit contains substantial new logic authored together. Omit it for mechanical changes (removing lines, renaming, formatting) — the trailer is signal, not noise.
+
+Claude's involvement in the project is already documented in NOTICE, README, and CLAUDE.md. Per-file headers and commit trailers on minor changes are redundant.
+
+### PR descriptions
+
+Lead with *why* and *impact*, not *what*. Target shape:
+
+1. One-paragraph summary — what the PR does and the problem it solves.
+2. Bullet list of logical threads if more than one, each with a *why this matters* clause.
+3. Test plan — checkbox list of how to verify.
+
+Title convention: conventional commits style, under ~70 characters, descriptive of the change.
+
+### Always review your changes
+
+After editing any file: read it back, check for syntax errors and typos, verify code examples are correct, confirm comments still accurately describe the code next to them — especially important in an educational project where comments are part of what the reader learns from.
+
+## Error handling
+
+**Fail loudly — no silent fallbacks.** Either an operation succeeds as intended, or it raises an actionable error. Prohibited:
+
+- `except Exception: pass` or any handler that discards the error and returns a placeholder
+- Config loaders that default missing required values to `None` or empty string — missing required config is a startup-time error
+- Retry loops that swallow the final failure and return success
+
+**Allowed:**
+- Catching a specific exception and re-raising with context: `raise ValueError(f"bad config at {path}: {e}") from e`
+- Translating hardware exceptions at the top-level entry point into a user-readable message and clean exit (as `capture.py` does for `LibUSBError`)
+
+Actionable errors name: *what failed*, *what the user should do*, and *where to look next*. A clear error message teaches the learner what went wrong and how to fix it.
+
+## Testing
+
+There are no tests yet (`tests/` contains only `__init__.py`). When tests are added, the priority order is:
+
+1. `sdr_compat.py` — unit test that `_SafeCDLL` returns a callable no-op for a missing symbol
+2. `capture_core.py` — unit tests for `load_config` and `write_config`; integration test for `run_observation` with a mocked `RtlSdr`
+3. `viewer.py` — unit test for `load_fits` and `format_metadata` against a minimal synthetic FITS file
 
 ## Key constraints
 
