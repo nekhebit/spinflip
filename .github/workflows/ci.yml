@@ -17,9 +17,6 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install librtlsdr
-        run: sudo apt-get install -y librtlsdr0
-
       - name: Install Poetry
         run: pipx install poetry
 
