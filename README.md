@@ -1,4 +1,4 @@
-# radio-telescope
+# spinflip
 
 A hydrogen line (21 cm) spectrometer built with an RTL-SDR dongle. Captures
 radio signals at 1420.405 MHz, averages multiple FFT frames to reduce noise,
