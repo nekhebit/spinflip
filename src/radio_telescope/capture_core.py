@@ -14,6 +14,7 @@ from rtlsdr.rtlsdr import RtlSdr, LibUSBError
 import numpy as np
 from astropy.io import fits
 import datetime
+import time
 import tomllib
 from pathlib import Path
 
@@ -29,6 +30,10 @@ DEFAULT_CONFIG = {
         "sample_count": 256 * 1024,  # 262 144 samples per integration
         "telescope": "Homebrew Horn - Cardboard 90x70cm",
         "output_dir": "observations",
+        # duration_s controls campaign mode. 0 means a single capture (default).
+        # Any positive value runs the observation loop repeatedly until that many
+        # seconds have elapsed, saving each file into a shared campaign folder.
+        "duration_s": 0,
     },
     "hardware": {
         "offset_hz": 1_000_000,
@@ -77,6 +82,7 @@ def write_config(path, hw, obs):
         f"sample_count = {obs['sample_count']}\n"
         f"telescope = \"{obs['telescope']}\"\n"
         f"output_dir = \"{obs['output_dir']}\"\n"
+        f"duration_s = {obs.get('duration_s', 0)}\n"
     )
     with open(path, "w") as f:
         f.write(content)
@@ -263,3 +269,70 @@ def run_observation(hw, obs, on_progress=None):
     finally:
         if sdr is not None:
             sdr.close()
+
+
+def run_campaign(hw, obs, on_progress=None, on_file_complete=None):
+    # Run a multi-file observation campaign lasting obs['duration_s'] seconds.
+    #
+    # Each iteration calls run_observation(), which captures obs['num_integrations']
+    # averaged spectra and saves them as a single FITS file. Files accumulate in
+    # a shared campaign folder until the requested duration has elapsed.
+    #
+    # This is useful for drift-scan observations: as the Earth rotates, different
+    # parts of the Milky Way drift through the antenna beam, and a sequence of
+    # files lets you reconstruct how the hydrogen signal changes over time.
+    #
+    # on_progress(current, total) is forwarded to each run_observation call so the
+    # caller can track progress within each individual file.
+    # on_file_complete(file_index, output_dir) is called after each file is saved.
+    #
+    # If Ctrl+C is pressed during a capture, the in-progress file is discarded and
+    # all previously completed files are kept intact.
+    #
+    # Returns (campaign_dir, results) where results is a list of
+    # (output_dir, freqs_mhz, power_db) tuples, one per completed file.
+
+    duration_s = obs["duration_s"]
+
+    # Create one campaign folder, timestamped at the moment the campaign starts.
+    # All observation subfolders live inside this directory so the whole campaign
+    # can be identified and moved as a unit.
+    campaign_start = datetime.datetime.now(datetime.UTC)
+    campaign_dir = (
+        Path(obs["output_dir"])
+        / f"campaign_{campaign_start.strftime('%Y%m%d_%H%M%S')}"
+    )
+    campaign_dir.mkdir(parents=True, exist_ok=True)
+
+    # Point run_observation at the campaign folder. It will create a timestamped
+    # subfolder inside it for each file, giving a structure like:
+    #   <output_dir>/campaign_YYYYMMDD_HHMMSS/
+    #       YYYYMMDD_HHMMSS/observation.fits   ← file 1
+    #       YYYYMMDD_HHMMSS/observation.fits   ← file 2
+    #       ...
+    obs_campaign = {**obs, "output_dir": str(campaign_dir)}
+
+    results = []
+    file_index = 0
+    start = time.monotonic()
+
+    try:
+        while True:
+            result = run_observation(hw, obs_campaign, on_progress=on_progress)
+            results.append(result)
+            file_index += 1
+
+            if on_file_complete:
+                on_file_complete(file_index, result[0])
+
+            # Check elapsed time after completing a file, not before starting one,
+            # so every file that starts also finishes and gets saved.
+            if time.monotonic() - start >= duration_s:
+                break
+
+    except KeyboardInterrupt:
+        # The in-progress capture did not complete. All files that run_observation
+        # already returned are intact in campaign_dir.
+        print("\nCampaign interrupted. Completed files were saved.")
+
+    return campaign_dir, results

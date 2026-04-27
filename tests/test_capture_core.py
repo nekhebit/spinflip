@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from radio_telescope.capture_core import load_config, write_config, run_observation, DEFAULT_CONFIG
+from radio_telescope.capture_core import load_config, write_config, run_observation, run_campaign, DEFAULT_CONFIG
 
 
 # --- load_config ---
@@ -187,3 +187,34 @@ def test_run_observation_closes_sdr_on_success(mock_hw, mock_obs, fake_samples):
         run_observation(mock_hw, mock_obs)
 
     mock_sdr.close.assert_called_once()
+
+
+# --- run_campaign ---
+
+def test_run_campaign_saves_multiple_files(mock_hw, fake_samples, tmp_path):
+    # Run a campaign long enough for two observation files to complete, then
+    # stop. time.monotonic is patched so the test does not actually wait:
+    # the first call (start) returns 0, the second (after file 1) returns 0.5,
+    # and the third (after file 2) returns 2.0. With duration_s=1.5 the loop
+    # exits after the second file, so we expect exactly two result entries.
+    obs = {
+        "azimuth": 0.0, "elevation": 90.0,
+        "num_integrations": 3,
+        "sample_count": 64,
+        "telescope": "Test",
+        "output_dir": str(tmp_path),
+        "duration_s": 1.5,
+    }
+    mock_sdr = MagicMock()
+    mock_sdr.read_samples.return_value = fake_samples
+
+    with patch("radio_telescope.capture_core.RtlSdr", return_value=mock_sdr), \
+         patch("radio_telescope.capture_core.time.monotonic", side_effect=[0, 0.5, 2.0]):
+        campaign_dir, results = run_campaign(mock_hw, obs)
+
+    assert len(results) == 2
+    # Each result is (output_dir, freqs_mhz, power_db); both files must exist.
+    for output_dir, _, _ in results:
+        assert (output_dir / "observation.fits").exists()
+    # The campaign folder itself must be inside the requested output_dir.
+    assert campaign_dir.parent == tmp_path

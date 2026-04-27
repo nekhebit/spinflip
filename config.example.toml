@@ -3,6 +3,12 @@ azimuth = 0.0
 elevation = 90.0
 num_integrations = 100
 output_dir = "observations"
+# duration_s controls campaign mode. 0 means a single capture (default).
+# Set to a positive number of seconds to run a sequence of files, each
+# containing num_integrations averaged spectra, until the duration elapses.
+# Example: duration_s = 3600 runs for one hour, saving one file roughly
+# every (num_integrations × capture_time) seconds.
+duration_s = 0
 
 [hardware]
 offset_hz = 1_000_000
