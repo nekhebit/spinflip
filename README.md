@@ -7,6 +7,12 @@ and plots the resulting power spectrum in dB.
 Inspired by [CHART](https://github.com/astrochart/CHART) — the Completely
 Hackable Amateur Radio Telescope project.
 
+Spinflip is also a personal learning project in two senses: understanding radio
+astronomy by building rather than just reading about it, and exploring how
+Claude (Anthropic) can work as a genuine collaborator in real software
+development. The code, tests, and documentation were developed with Claude
+throughout.
+
 ## Hardware
 
 - RTL-SDR Blog V4 dongle
