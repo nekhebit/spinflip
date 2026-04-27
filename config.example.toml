@@ -14,3 +14,20 @@ duration_s = 0
 offset_hz = 1_000_000
 #TODO ppm_correction = 0
 gain = "auto"
+
+# [scan] — optional. When present, observe.py sweeps the SDR across the given
+# frequency range instead of capturing a single fixed-frequency observation.
+# Each step captures num_integrations averaged spectra and the results are
+# stitched into one wide-band spectrum saved as scan.fits.
+#
+# step_mhz ideally equals sample_rate / 1e6 (= 2 * offset_hz / 1e6) so that
+# adjacent steps tile without gaps. Smaller values produce overlapping steps;
+# larger values leave gaps in the stitched spectrum.
+#
+# Note: the RTL-SDR hardware DC artifact (a spike at each step's center
+# frequency) will be visible in the stitched output — this is expected.
+#
+# [scan]
+# start_mhz = 1418.0
+# stop_mhz  = 1424.0
+# step_mhz  = 2.0

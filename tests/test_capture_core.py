@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from radio_telescope.capture_core import load_config, write_config, run_observation, run_campaign, DEFAULT_CONFIG
+from radio_telescope.capture_core import load_config, write_config, run_observation, run_campaign, run_scan, DEFAULT_CONFIG
 
 
 # --- load_config ---
@@ -218,3 +218,26 @@ def test_run_campaign_saves_multiple_files(mock_hw, fake_samples, tmp_path):
         assert (output_dir / "observation.fits").exists()
     # The campaign folder itself must be inside the requested output_dir.
     assert campaign_dir.parent == tmp_path
+
+
+# --- run_scan ---
+
+def test_run_scan_stitches_two_steps(mock_hw, mock_obs, fake_samples):
+    # Two steps of sample_count bins each should produce a stitched spectrum
+    # with 2 * sample_count entries, and frequencies must be sorted ascending
+    # so the result reads left-to-right from low to high frequency.
+    # step_mhz equals sample_rate / 1e6 (= 2 * offset / 1e6 = 2.0 MHz) so the
+    # steps tile without gaps and without overlap.
+    scan = {"start_mhz": 1419.0, "stop_mhz": 1421.0, "step_mhz": 2.0}
+    mock_sdr = MagicMock()
+    mock_sdr.read_samples.return_value = fake_samples
+
+    with patch("radio_telescope.capture_core.RtlSdr", return_value=mock_sdr):
+        output_dir, freqs_mhz, power_db = run_scan(mock_hw, mock_obs, scan)
+
+    assert len(freqs_mhz) == 2 * mock_obs["sample_count"]
+    assert len(power_db)  == 2 * mock_obs["sample_count"]
+    # Frequencies must be sorted ascending after stitching.
+    assert np.all(freqs_mhz[:-1] <= freqs_mhz[1:])
+    assert (output_dir / "scan.fits").exists()
+    assert (output_dir / "config.toml").exists()

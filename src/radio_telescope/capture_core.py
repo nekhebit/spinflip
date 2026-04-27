@@ -59,13 +59,15 @@ def load_config(path):
         # keep their default values.
         config["observation"].update(user.get("observation", {}))
         config["hardware"].update(user.get("hardware", {}))
+        if "scan" in user:
+            config["scan"] = user["scan"]
         print(f"Loaded config from {path}")
     except FileNotFoundError:
         print(f"Config file {path} not found, using defaults")
     return config
 
 
-def write_config(path, hw, obs):
+def write_config(path, hw, obs, scan=None):
     # Save the exact settings used for this observation as a TOML file.
     # This makes every observation folder self-contained and reproducible —
     # you can always re-run with the same parameters by pointing observe.py
@@ -84,6 +86,13 @@ def write_config(path, hw, obs):
         f"output_dir = \"{obs['output_dir']}\"\n"
         f"duration_s = {obs.get('duration_s', 0)}\n"
     )
+    if scan is not None:
+        content += (
+            f"\n[scan]\n"
+            f"start_mhz = {scan['start_mhz']}\n"
+            f"stop_mhz = {scan['stop_mhz']}\n"
+            f"step_mhz = {scan['step_mhz']}\n"
+        )
     with open(path, "w") as f:
         f.write(content)
 
@@ -336,3 +345,146 @@ def run_campaign(hw, obs, on_progress=None, on_file_complete=None):
         print("\nCampaign interrupted. Completed files were saved.")
 
     return campaign_dir, results
+
+
+def run_scan(hw, obs, scan, on_progress=None, on_step_complete=None):
+    # Sweep the SDR through a range of center frequencies and stitch the
+    # resulting spectra into a single wide-band power spectrum.
+    #
+    # Each step tunes the SDR to a new center frequency, captures
+    # num_integrations averaged FFT frames (exactly as run_observation does),
+    # then moves on. All steps share the same open SDR handle to avoid the
+    # overhead of closing and re-opening the USB device between steps.
+    #
+    # DC artifact: the RTL-SDR hardware cannot accurately represent 0 Hz offset
+    # (direct current), so the bin at each step's center frequency is always
+    # brighter than its neighbours. In a single-frequency observation the offset
+    # tuning trick keeps the signal of interest away from DC; in a scan that
+    # artifact lands at each step's center and appears as a periodic spike in
+    # the stitched spectrum. These spikes are hardware artefacts, not real
+    # signals — they are visible in the output so the reader can learn to
+    # recognise and discount them.
+    #
+    # on_progress(current, total) is forwarded to each step's integration loop.
+    # on_step_complete(step, num_steps) is called after each step finishes.
+    #
+    # Returns (output_dir, freqs_mhz, power_db) — the full stitched spectrum.
+
+    offset = hw["offset_hz"]
+    sample_rate = 2 * offset
+    sample_count = obs["sample_count"]
+    num_integrations = obs["num_integrations"]
+
+    start_hz = scan["start_mhz"] * 1e6
+    stop_hz  = scan["stop_mhz"]  * 1e6
+    step_hz  = scan["step_mhz"]  * 1e6
+
+    # Build the list of center frequencies for each step.
+    # Adding step_hz * 0.5 to stop_hz makes np.arange include stop_hz when it
+    # falls exactly on a step boundary — np.arange excludes its stop value, so
+    # without the nudge we would silently skip the last step.
+    centers = np.arange(start_hz, stop_hz + step_hz * 0.5, step_hz)
+    num_steps = len(centers)
+
+    # Pre-compute the Blackman-Harris window and its power normalisation factor
+    # once for the whole scan — both depend only on sample_count, which is
+    # constant across steps. See run_observation for a full explanation of why
+    # this window is used and what the four coefficients mean.
+    idx = np.arange(sample_count)
+    window = (
+        0.35875
+        - 0.48829 * np.cos(2 * np.pi * idx / sample_count)
+        + 0.14128 * np.cos(4 * np.pi * idx / sample_count)
+        - 0.01168 * np.cos(6 * np.pi * idx / sample_count)
+    )
+    window_norm = np.sum(window ** 2)
+
+    # Accumulators for the stitched spectrum — one entry per step.
+    all_freqs_hz = []
+    all_power_db = []
+
+    sdr = None
+    try:
+        sdr = RtlSdr()
+        sdr.sample_rate = sample_rate
+        sdr.gain = hw["gain"]
+        sdr.set_bias_tee(1)
+
+        for step_idx, center in enumerate(centers):
+            # Retune the already-open SDR to the next center frequency.
+            # Reusing one handle avoids the USB open/close overhead and keeps
+            # the gap between steps as short as possible.
+            sdr.center_freq = center
+
+            power_avg = np.zeros(sample_count)
+
+            for n in range(num_integrations):
+                samples = sdr.read_samples(sample_count)
+                spectrum = np.fft.fft(samples * window)
+                power_avg += np.abs(spectrum) ** 2
+                if on_progress:
+                    on_progress(n + 1, num_integrations)
+
+            power_avg /= num_integrations
+            power_avg /= window_norm
+
+            # fftfreq returns offsets relative to 0 Hz (the tuned center).
+            # Adding `center` converts to absolute frequencies so bins from
+            # different steps share the same reference and can be stitched.
+            freqs_hz = (
+                np.fft.fftshift(np.fft.fftfreq(sample_count, d=1 / sample_rate))
+                + center
+            )
+            power_db = np.fft.fftshift(10 * np.log10(power_avg))
+
+            all_freqs_hz.append(freqs_hz)
+            all_power_db.append(power_db)
+
+            if on_step_complete:
+                on_step_complete(step_idx + 1, num_steps)
+
+        # Stitch: flatten all steps into one array, then sort by frequency so
+        # the final spectrum reads left-to-right from low to high.
+        # If steps overlap (step_hz < sample_rate) some bins appear twice —
+        # they are kept as-is so the reader can see the overlap region.
+        # If steps tile exactly (step_hz == sample_rate) the result is seamless.
+        freqs_hz = np.concatenate(all_freqs_hz)
+        power_db = np.concatenate(all_power_db)
+        sort_idx = np.argsort(freqs_hz)
+        freqs_hz  = freqs_hz[sort_idx]
+        power_db  = power_db[sort_idx]
+        freqs_mhz = freqs_hz / 1e6
+
+        # Save the stitched spectrum to a timestamped folder.
+        timestamp = datetime.datetime.now(datetime.UTC)
+        output_dir = Path(obs["output_dir"]) / timestamp.strftime("%Y%m%d_%H%M%S")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        hdu = fits.PrimaryHDU(power_db)
+        hdu.header["SAMPRATE"] = sample_rate
+        hdu.header["NUMINT"]   = num_integrations
+        hdu.header["DATE-OBS"] = timestamp.isoformat()
+        hdu.header["TELESCOP"] = obs["telescope"]
+        hdu.header["AZIMUTH"]  = obs["azimuth"]
+        hdu.header["ELEVATIO"] = obs["elevation"]
+        hdu.header["BUNIT"]    = "dB"
+        hdu.header["WINDOW"]   = "Blackman-Harris"
+        hdu.header["SCANSTRT"] = scan["start_mhz"]
+        hdu.header["SCANSTOP"] = scan["stop_mhz"]
+        hdu.header["SCANSTP"]  = scan["step_mhz"]
+        hdu.header["NUMSTEPS"] = num_steps
+
+        freqs_hdu = fits.ImageHDU(freqs_mhz, name="FREQS")
+        freqs_hdu.header["BUNIT"] = "MHz"
+
+        fits.HDUList([hdu, freqs_hdu]).writeto(
+            output_dir / "scan.fits", overwrite=True
+        )
+
+        write_config(output_dir / "config.toml", hw, obs, scan=scan)
+
+        return output_dir, freqs_mhz, power_db
+
+    finally:
+        if sdr is not None:
+            sdr.close()
