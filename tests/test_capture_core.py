@@ -161,6 +161,22 @@ def test_run_observation_calls_on_progress(mock_hw, mock_obs, fake_samples):
     assert calls[-1] == (mock_obs["num_integrations"], mock_obs["num_integrations"])
 
 
+def test_run_observation_timestamps_hdu(mock_hw, mock_obs, fake_samples):
+    # The FITS file should contain a TIMESTAMPS HDU with one entry per
+    # integration — the Unix time at the start of each spectrum capture.
+    from astropy.io import fits
+
+    mock_sdr = MagicMock()
+    mock_sdr.read_samples.return_value = fake_samples
+
+    with patch("radio_telescope.capture_core.RtlSdr", return_value=mock_sdr):
+        output_dir, _, _ = run_observation(mock_hw, mock_obs)
+
+    with fits.open(output_dir / "observation.fits") as hdul:
+        assert "TIMESTAMPS" in hdul
+        assert len(hdul["TIMESTAMPS"].data) == mock_obs["num_integrations"]
+
+
 def test_run_observation_closes_sdr_on_success(mock_hw, mock_obs, fake_samples):
     # sdr.close() must be called even on a clean run — the dongle needs to be
     # released so the next observation (or another process) can open it.

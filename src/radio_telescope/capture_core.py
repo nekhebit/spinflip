@@ -162,7 +162,19 @@ def run_observation(hw, obs, on_progress=None):
         # comparable between windowed and un-windowed measurements.
         window_norm = np.sum(window ** 2)
 
+        # Collect a Unix timestamp at the start of each integration so we know
+        # exactly when each spectrum was captured. This is useful for correlating
+        # signal changes with the telescope's pointing direction as the sky drifts
+        # overhead, and for identifying radio frequency interference (RFI) that
+        # appears only at certain times. Unix time (seconds since 1970-01-01 UTC)
+        # is stored as float64 for sub-millisecond precision.
+        timestamps = []
+
         for n in range(num_integrations):
+            # Record the time at the start of this integration — before reading
+            # samples — so the timestamp marks when the spectrum capture began.
+            timestamps.append(datetime.datetime.now(datetime.UTC).timestamp())
+
             # Read a block of complex IQ samples from the dongle.
             # IQ stands for In-phase / Quadrature — two channels 90° apart
             # that together represent the full complex baseband signal.
@@ -230,7 +242,16 @@ def run_observation(hw, obs, on_progress=None):
         freqs_hdu = fits.ImageHDU(freqs_mhz, name="FREQS")
         freqs_hdu.header["BUNIT"] = "MHz"
 
-        fits.HDUList([hdu, freqs_hdu]).writeto(
+        # Store one Unix timestamp per integration as a third HDU.
+        # Each value marks the moment the corresponding block of IQ samples
+        # began to be read from the dongle, expressed as seconds since
+        # 1970-01-01 00:00:00 UTC (float64 for sub-millisecond precision).
+        # This lets you reconstruct the exact time axis of the observation
+        # and correlate changes in the spectrum with sky position or RFI events.
+        timestamps_hdu = fits.ImageHDU(np.array(timestamps), name="TIMESTAMPS")
+        timestamps_hdu.header["BUNIT"] = "Unix s (UTC)"
+
+        fits.HDUList([hdu, freqs_hdu, timestamps_hdu]).writeto(
             output_dir / "observation.fits", overwrite=True
         )
 
