@@ -1,7 +1,7 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="docs/img/spinflip-lockup-blueprint.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/img/spinflip-lockup-paper.png">
-  <img alt="spinflip" src="docs/img/spinflip-lockup-paper.png" width="600">
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/img/spinflip-lockup-paper.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/img/spinflip-lockup-blueprint.png">
+  <img alt="spinflip" src="docs/img/spinflip-lockup-blueprint.png" width="600">
 </picture>
 
 # spinflip
