@@ -26,7 +26,7 @@ DEFAULT_CONFIG = {
         "azimuth": 0.0,
         "elevation": 90.0,
         "num_integrations": 100,
-        "sample_count": 256 * 1024,   # 262 144 samples per integration
+        "sample_count": 256 * 1024,  # 262 144 samples per integration
         "telescope": "Homebrew Horn - Cardboard 90x70cm",
         "output_dir": "observations",
     },
@@ -42,7 +42,7 @@ def load_config(path):
     # Start from a deep copy of the defaults so missing keys always have a value.
     config = {
         "observation": dict(DEFAULT_CONFIG["observation"]),
-        "hardware":    dict(DEFAULT_CONFIG["hardware"]),
+        "hardware": dict(DEFAULT_CONFIG["hardware"]),
     }
     if path is None:
         print("No config file specified, using defaults")
@@ -109,7 +109,7 @@ def run_observation(hw, obs, on_progress=None):
     # the target signal away from DC keeps it measurable.
     center_freq = 1.420e9 + offset  # Hz
 
-    sample_count    = obs["sample_count"]
+    sample_count = obs["sample_count"]
     num_integrations = obs["num_integrations"]
 
     sdr = None
@@ -120,6 +120,8 @@ def run_observation(hw, obs, on_progress=None):
 
         # gain: auto for now, SAWbird already provides 40 dB amplification upstream
         sdr.gain = hw["gain"]
+
+        sdr.set_bias_tee(1)  # enable power to SAWbird
 
         power_avg = np.zeros(sample_count)
 
@@ -156,10 +158,10 @@ def run_observation(hw, obs, on_progress=None):
         # fftshift reorders both arrays by position (not value) so frequencies
         # run from most negative to most positive — matches how a spectrum should read.
         freqs_mhz = np.fft.fftshift(freqs) / 1e6
-        power_db  = np.fft.fftshift(power_db)
+        power_db = np.fft.fftshift(power_db)
 
         # Create a timestamped subfolder so each observation is self-contained.
-        timestamp  = datetime.datetime.now(datetime.UTC)
+        timestamp = datetime.datetime.now(datetime.UTC)
         output_dir = Path(obs["output_dir"]) / timestamp.strftime("%Y%m%d_%H%M%S")
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -167,22 +169,24 @@ def run_observation(hw, obs, on_progress=None):
         # in radio astronomy. It stores data arrays alongside structured metadata
         # headers, making observations portable and readable by tools like DS9 or astropy.
         hdu = fits.PrimaryHDU(power_db)
-        hdu.header["FREQ"]     = center_freq
-        hdu.header["OFFSET"]   = offset
+        hdu.header["FREQ"] = center_freq
+        hdu.header["OFFSET"] = offset
         hdu.header["SAMPRATE"] = sample_rate
-        hdu.header["NUMINT"]   = num_integrations
+        hdu.header["NUMINT"] = num_integrations
         hdu.header["DATE-OBS"] = timestamp.isoformat()
         hdu.header["TELESCOP"] = obs["telescope"]
-        hdu.header["AZIMUTH"]  = obs["azimuth"]
+        hdu.header["AZIMUTH"] = obs["azimuth"]
         hdu.header["ELEVATIO"] = obs["elevation"]
-        hdu.header["BUNIT"]    = "dB"
+        hdu.header["BUNIT"] = "dB"
 
         # Store the frequency axis as a second HDU (Header Data Unit) so
         # any reader can reconstruct the full labelled spectrum from one file.
         freqs_hdu = fits.ImageHDU(freqs_mhz, name="FREQS")
         freqs_hdu.header["BUNIT"] = "MHz"
 
-        fits.HDUList([hdu, freqs_hdu]).writeto(output_dir / "observation.fits", overwrite=True)
+        fits.HDUList([hdu, freqs_hdu]).writeto(
+            output_dir / "observation.fits", overwrite=True
+        )
 
         # Save the config alongside the data for reproducibility.
         write_config(output_dir / "config.toml", hw, obs)
