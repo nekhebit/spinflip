@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/img/spinflip-lockup-blueprint.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/img/spinflip-lockup-paper.png">
+  <img alt="spinflip" src="docs/img/spinflip-lockup-paper.png" width="600">
+</picture>
+
 # spinflip
 
 A hydrogen line (21 cm) spectrometer built with an RTL-SDR dongle. Captures
