@@ -125,15 +125,57 @@ def run_observation(hw, obs, on_progress=None):
 
         power_avg = np.zeros(sample_count)
 
+        # Compute the Blackman-Harris window once before the loop.
+        # A window function tapers the samples smoothly to zero at both ends of
+        # each block before the FFT is applied.
+        #
+        # Without windowing the FFT implicitly treats the block as if it repeats
+        # perfectly at its boundaries — a "rectangular window". Real signals
+        # almost never repeat perfectly, so the sharp discontinuity at the block
+        # edge creates spectral leakage: power from strong signals bleeds across
+        # many adjacent frequency bins and can obscure the hydrogen line peak
+        # beneath the skirts of a nearby interferer.
+        #
+        # Blackman-Harris is a four-term cosine window chosen for its very low
+        # sidelobe level (~-92 dB), which makes it one of the best choices for
+        # detecting a narrow spectral line against broadband noise. The trade-off
+        # is a slightly wider main lobe — the peak appears a little broader —
+        # but for hydrogen line detection this is far preferable to leakage.
+        #
+        # The four coefficients below are the standard Blackman-Harris values:
+        #   w(n) = 0.35875
+        #        - 0.48829 * cos(2πn/N)
+        #        + 0.14128 * cos(4πn/N)
+        #        - 0.01168 * cos(6πn/N)
+        idx = np.arange(sample_count)
+        window = (
+            0.35875
+            - 0.48829 * np.cos(2 * np.pi * idx / sample_count)
+            + 0.14128 * np.cos(4 * np.pi * idx / sample_count)
+            - 0.01168 * np.cos(6 * np.pi * idx / sample_count)
+        )
+
+        # Pre-compute the window's power normalisation factor.
+        # Multiplying samples by the window reduces their overall energy because
+        # the tapered edges are close to zero. Dividing the averaged power by
+        # this factor restores the correct power scale so dB values remain
+        # comparable between windowed and un-windowed measurements.
+        window_norm = np.sum(window ** 2)
+
         for n in range(num_integrations):
             # Read a block of complex IQ samples from the dongle.
             # IQ stands for In-phase / Quadrature — two channels 90° apart
             # that together represent the full complex baseband signal.
             samples = sdr.read_samples(sample_count)
 
-            # FFT runs the "does it agree?" check for every frequency bin from k=0 to k=N-1
-            # and returns a complex number per bin encoding how strongly that frequency is present.
-            spectrum = np.fft.fft(samples)
+            # Apply the window before the FFT. The element-wise multiplication
+            # tapers the block edges to zero, eliminating the discontinuity that
+            # causes spectral leakage.
+            #
+            # FFT then runs the "does it agree?" check for every frequency bin
+            # from k=0 to k=N-1 and returns a complex number per bin encoding
+            # how strongly that frequency is present.
+            spectrum = np.fft.fft(samples * window)
 
             # abs() gives the length of the complex arrow (√(a²+b²)) for each bin.
             # Squaring it gives power — a real positive number representing signal strength per bin.
@@ -146,6 +188,9 @@ def run_observation(hw, obs, on_progress=None):
         # Averaging multiple frames reduces random noise while preserving the
         # real signal, which stays consistent across captures.
         power_avg /= num_integrations
+
+        # Correct for the energy reduction introduced by the window.
+        power_avg /= window_norm
 
         # fftfreq generates a frequency label for each bin — it is just a ruler,
         # not a computation on the signal. d is the time between samples (1/sample_rate),
@@ -178,6 +223,7 @@ def run_observation(hw, obs, on_progress=None):
         hdu.header["AZIMUTH"] = obs["azimuth"]
         hdu.header["ELEVATIO"] = obs["elevation"]
         hdu.header["BUNIT"] = "dB"
+        hdu.header["WINDOW"] = "Blackman-Harris"
 
         # Store the frequency axis as a second HDU (Header Data Unit) so
         # any reader can reconstruct the full labelled spectrum from one file.
